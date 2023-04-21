@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import AddressForm from '@components/components/AddressForm'
 import { useState } from 'react'
 import * as web3 from '@solana/web3.js'
+import { AccountLayout, TOKEN_PROGRAM_ID } from '@solana/spl-token'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -36,28 +37,55 @@ export default function Home() {
     try {
       const pubKey = new web3.PublicKey(address)
       if (pubKey) {
-        console.log("Public Key: " , pubKey.toString());
+        console.log("Public Key: ", pubKey.toString());
         const connection = new web3.Connection(web3.clusterApiUrl('devnet'))
         const balance = await connection.getBalance(pubKey);
-        console.log("Balance: " , balance / web3.LAMPORTS_PER_SOL);
+        console.log("Balance: ", balance / web3.LAMPORTS_PER_SOL);
         const signature = await connection.requestAirdrop(
-          pubKey, 
+          pubKey,
           1 * web3.LAMPORTS_PER_SOL);
-          const latestBlockhash = await connection.getLatestBlockhash();
-          await connection.confirmTransaction({
-            blockhash: latestBlockhash.blockhash,
-            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-            signature: signature
-          }); 
-        alert("Airdrop Successful");
+        const latestBlockhash = await connection.getLatestBlockhash();
+        const airdrop = await connection.confirmTransaction({
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          signature: signature
+        });
+        if (airdrop) {
+          alert("Airdrop Successful");
+          const newBalance = await connection.getBalance(pubKey);
+          console.log("New Balance: ", newBalance / web3.LAMPORTS_PER_SOL);
+        }
       }
     }
-     catch (error) {
+    catch (error) {
       setAddress('')
       setBalance(0)
       alert(error)
     }
   }
+
+  const handleViewTokens = async () => {
+    try {
+      const connection = new web3.Connection(web3.clusterApiUrl('devnet'));
+      const tokenAccounts = await connection.getTokenAccountsByOwner(
+        new web3.PublicKey(address),
+        {
+          programId: TOKEN_PROGRAM_ID
+        },
+      );
+      console.log("Token                                         Balance");
+      console.log("------------------------------------------------------------");
+      tokenAccounts.value.forEach((tokenAccount) => {
+        const accountData = AccountLayout.decode(tokenAccount.account.data);
+        console.log(`${new web3.PublicKey(accountData.mint)}   ${accountData.amount}`);
+      });
+    } catch (error) {
+      setAddress('')
+      setBalance(0)
+      alert(error)
+    }
+  }
+
 
   return (
     <>
@@ -69,18 +97,26 @@ export default function Home() {
       </Head>
 
       <div className='flex flex-col items-center justify-center 
-      min-h-screen bg-gradient-to-bl from-white via-black to-black text-white'>
+    min-h-screen bg-gradient-to-bl from-white via-black to-black text-white'>
         <AddressForm handler={addressSubmittedHandler} airdropHandler={function (address: string): void {
           throw new Error('Function not implemented.')
-        } } />
-        <div className='mt-10'>
+        }} />
+        <div className='h-18'>
           <p>Address : {address}</p>
           <p>Balance : {balance}</p>
-          <p>Executable : { executable ? 'Yes' : 'No' }</p>
+          <p>Executable : {executable ? 'Yes' : 'No'}</p>
         </div>
-        <button className="border-2 px-4 my-8 bg-violet-600
-          rounded-full border-violet-500" type="submit" onClick={handleAirdrop}>Airdrop SOL</button>
+        {address ?
+          <div>
+            <button className="border-2 px-4 mx-2 mt-4 bg-violet-600
+            rounded-full border-violet-500" type="submit" onClick={handleAirdrop}>Airdrop SOL</button>
+            <button className="border-2 mx-2 px-4 bg-violet-600
+            rounded-full border-violet-500" type="submit" onClick={handleViewTokens}>View Tokens</button>
+          </div>
+          : null
+        }
       </div>
     </>
   )
+
 }
