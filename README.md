@@ -1,7 +1,6 @@
-## NextJSv13 - TailwindCSS Template
+## Simple Sol Faucet
 
-You don't choose your starter Pokemon everyday, do you?
-
+NextJSv13 
 First, run the development server:
 
 ```bash
